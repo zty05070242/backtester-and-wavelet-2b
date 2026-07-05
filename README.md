@@ -355,5 +355,4 @@ plotly
 pykalman
 PyWavelets   (imported as pywt)
 scipy        (used by wavelet_two_b.py for find_peaks)
-mplfinance
 ```
