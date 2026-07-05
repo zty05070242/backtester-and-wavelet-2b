@@ -30,14 +30,13 @@ class Backtester:
         self.equity_curve = []
 
     def run(self, data: pd.DataFrame, strategy, verbose: bool = True) -> Dict:
-        """
-        Run the backtest on a dataset using a given strategy.
-        Args:
-            data: OHLCV DataFrame from data_loader.
-            strategy: Any Strategy subclass instance.
-            verbose: If True, prints trade-by-trade output.
-        Returns:
-            Dictionary of performance metrics and trade log.
+        """Run the backtest on a dataset using a given strategy.
+
+        data: OHLCV DataFrame from data_loader.
+        strategy: any Strategy subclass instance.
+        verbose: print trade-by-trade output if True.
+
+        returns a dict of performance metrics and the trade log.
         """
         self._reset()
 

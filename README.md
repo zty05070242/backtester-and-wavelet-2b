@@ -203,34 +203,26 @@ Profit factor: **Wavelet wins 6/10**.
 
 ### Key findings
 
-**1. Removing backwards filters made 2B Rule much stronger.** An earlier
-version of this experiment used volume and ATR breakout filters on the 2B
-baseline — both are counterproductive for a reversal strategy (high-volume
-breakouts are the ones you least want to fade). Removing them significantly
-improved TwoB's Sharpe, which is why the results here are more balanced than
-initially reported. The corrected baseline is the honest comparison.
+An earlier version used volume and ATR breakout filters on the 2B baseline —
+both counterproductive for a reversal strategy (high-volume breakouts are
+exactly the ones you don't want to fade). Removing them lifted TwoB's Sharpe
+noticeably, which is why the results here are more balanced than first reported.
+The table above is the corrected, honest baseline.
 
-**2. Wavelet-2B consistently reduces drawdown.** Across both backtesters and
-across 7–8 of 10 markets, Wavelet-2B produces lower max drawdown than the
-rolling-window baseline. This holds even in markets where Wavelet-2B loses
-on Sharpe — the signal selectivity (fewer trades, ~40% lower trade count)
-limits exposure during losing stretches.
+Wavelet-2B's main edge is drawdown: it fires ~40% fewer signals, which limits
+exposure during losing stretches. That holds even in markets where it loses on
+Sharpe. Plain 2B stays more active and compounds more aggressively — higher
+Sharpe in most markets, higher drawdown in almost all of them. Genuine
+trade-off, not a clear winner.
 
-**3. 2B Rule wins on Sharpe with a fair baseline.** With the filters removed,
-plain 2B fires more signals, stays more active, and compounds more
-aggressively. In most markets that produces a higher Sharpe — but at the cost
-of higher drawdown. The two strategies represent a genuine trade-off: return
-efficiency (2B) vs capital preservation (Wavelet-2B).
+Crude Oil is the clearest case for Wavelet-2B. The rolling-window baseline
+struggles there (Sharpe 0.35–0.38, drawdown -50% to -83%) because Crude's
+noisy price action constantly rewrites the rolling high/low and generates
+false breakouts. The prominence filter screens most of those out.
 
-**4. Crude Oil is Wavelet-2B's clearest win.** The rolling-window 2B
-struggles on Crude (Sharpe 0.35–0.38, drawdown -50% to -83%) because Crude's
-noisy, mean-reverting price action produces constant false rolling-window
-breakouts. Wavelet-2B's prominence filter screens those out and posts Sharpe
-0.49–0.64 with substantially lower drawdown.
-
-**5. Natural Gas resists both strategies.** NG=F posts the worst numbers
-across the board — sharp regime changes and seasonality make it structurally
-difficult for a failed-breakout approach. Neither pivot method handles it well.
+Natural Gas is the hard case for both strategies. Regime changes and
+seasonality make failed-breakout logic structurally awkward on NG=F; neither
+pivot method handles it well.
 
 ---
 
@@ -363,5 +355,5 @@ plotly
 pykalman
 PyWavelets   (imported as pywt)
 scipy        (used by wavelet_two_b.py for find_peaks)
-mplfinance   (used by charts/chart_twob.py)
+mplfinance
 ```

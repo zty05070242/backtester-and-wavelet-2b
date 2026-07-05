@@ -29,21 +29,19 @@ import pywt
 
 
 def _estimate_sigma(detail_coeffs: np.ndarray) -> float:
-    """
-    Estimate noise standard deviation from the finest-scale detail coefficients.
+    """MAD-based sigma estimate from the finest detail band.
 
-    MAD (median absolute deviation) divided by 0.6745 gives a robust estimate of
-    sigma for Gaussian noise — the constant 0.6745 is the 75th percentile of
-    a standard normal, so MAD / 0.6745 is consistent with the std of N(0, sigma^2).
+    0.6745 is the 75th percentile of N(0,1), so MAD/0.6745 is consistent
+    with the std of Gaussian noise.
     """
     return np.median(np.abs(detail_coeffs)) / 0.6745
 
 
 def _universal_threshold(n: int, sigma: float) -> float:
-    """
-    Donoho-Johnstone universal threshold: sigma * sqrt(2 * log(n)).
-    Scales with signal length because more samples -> higher chance of a
-    noise spike exceeding any fixed threshold.
+    """Donoho-Johnstone universal threshold: sigma * sqrt(2 * log(n)).
+
+    Scales with series length — more samples, higher chance of a noise spike
+    exceeding any fixed threshold.
     """
     return sigma * np.sqrt(2.0 * np.log(n))
 
@@ -103,26 +101,18 @@ def wavelet_denoise(
     mode: str = "soft",
     threshold_scale: float = 1.0,
 ) -> pd.Series:
-    """
-    Global wavelet denoising — ONE-SHOT over the full series.
+    """Global wavelet denoising — one-shot over the full series.
 
-    WARNING: uses future data. At any given index t the reconstruction depends
-    on samples both before AND after t, so this CANNOT be used as a live
-    trading signal. Purpose here is offline analysis, visualisation, and as
-    an upper-bound baseline to compare the causal rolling version against.
+    WARNING: uses future data. Reconstruction at index t depends on samples
+    before and after t, so don't use this inside a backtest signal. It's for
+    offline analysis and as an upper-bound baseline against the causal version.
 
-    Args:
-        series: pandas Series with a DatetimeIndex (e.g. close prices or returns).
-        wavelet: pywt wavelet name. 'db6' is a good general-purpose default —
-                 smooth enough for financial data, compact support.
-        level: decomposition depth; None means "use the max the data length allows".
-        mode: 'soft' (shrink toward zero) or 'hard' (keep-or-kill).
-        threshold_scale: multiplier on the universal threshold. 1.0 = standard
-                         Donoho-Johnstone. 0.5 = less aggressive, better for
-                         denoising price directly.
-
-    Returns:
-        pd.Series with the same index as the input, holding the denoised signal.
+    series: pandas Series (close prices or returns).
+    wavelet: pywt wavelet name. db6 is a good default — smooth, compact support.
+    level: decomposition depth; None uses the max the data length allows.
+    mode: 'soft' (shrink toward zero) or 'hard' (keep-or-kill).
+    threshold_scale: multiplier on the universal threshold. 1.0 = standard DJ.
+        0.5 = less aggressive, better for denoising price directly.
     """
     if mode not in ("soft", "hard"):
         raise ValueError("mode must be 'soft' or 'hard'")
@@ -147,29 +137,23 @@ def rolling_wavelet_denoise(
     mode: str = "soft",
     threshold_scale: float = 1.0,
 ) -> pd.Series:
-    """
-    Causal rolling-window wavelet denoising — LIVE-TRADEABLE version.
+    """Causal rolling-window wavelet denoising — live-tradeable version.
 
-    At each date t we denoise the prior `window` samples and keep only the
-    LAST reconstructed value as the denoised estimate at t. Nothing after t
-    is ever touched, so there is no look-ahead bias — the same guarantee the
-    Kalman `.filter()` calls elsewhere in this repo give you.
+    At each bar t, denoise the prior window samples and keep only the last
+    reconstructed value as the estimate at t. Nothing after t is touched,
+    so no look-ahead bias — same guarantee as Kalman .filter() calls.
 
-    Cost: O(window * N) work — much slower than the global version. If this
-    is too slow for long backtests, lower `window` (e.g. 128) or cache results.
+    O(window * N) work — slower than the global version. If that's a problem,
+    lower window (e.g. 128) or cache results between runs.
 
-    Args:
-        series: pandas Series with a DatetimeIndex.
-        window: lookback size in bars. 252 ~ 1 year of daily bars.
-        wavelet: pywt wavelet name.
-        mode: 'soft' or 'hard' thresholding.
-        threshold_scale: multiplier on the universal threshold. 1.0 = standard
-                         Donoho-Johnstone. 0.5 = less aggressive, better for
-                         denoising price directly.
+    series: pandas Series with a DatetimeIndex.
+    window: lookback in bars. 252 ~ 1 year of daily data.
+    wavelet: pywt wavelet name.
+    mode: 'soft' or 'hard' thresholding.
+    threshold_scale: multiplier on the universal threshold. 1.0 = standard DJ.
+        0.5 = gentler, better for denoising price directly.
 
-    Returns:
-        pd.Series on the input's index. The first `window - 1` values are NaN
-        because the window isn't yet full.
+    first window-1 values in the output are NaN (window not yet full).
     """
     if mode not in ("soft", "hard"):
         raise ValueError("mode must be 'soft' or 'hard'")

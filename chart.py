@@ -13,16 +13,14 @@ _BASE_COLS = {
 
 
 def plot_signals(strategy, save_path: str = 'signals_chart.html', show: bool = True):
-    """
-    Plot a candlestick chart with strategy overlays and buy/sell markers.
+    """Candlestick chart with strategy overlays and buy/sell markers.
 
-    Works with any strategy — auto-detects indicator columns
-    (e.g. fast_ma, slow_ma, rsi_upper) and overlays them on the chart.
+    Works with any strategy — auto-detects indicator columns (e.g. fast_ma,
+    swing_high) and overlays them on the price axis.
 
-    Args:
-        strategy: A Strategy instance that has already been run (signals generated).
-        save_path: Where to save the HTML chart.
-        show: If True, opens the chart in the browser.
+    strategy: a Strategy instance with signals already generated.
+    save_path: path to write the HTML chart.
+    show: if True, opens the chart in the browser.
     """
     signals = strategy.get_signals()
     buy_signals = signals[signals['signal'] == 1]

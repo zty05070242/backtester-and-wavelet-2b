@@ -8,40 +8,27 @@ from scipy.signal import find_peaks
 
 class WaveletTwoB(Strategy):
     """
-    Sperandeo's 2B failed-breakout rule, but with swing highs/lows identified
+    Sperandeo's 2B failed-breakout rule with swing highs/lows identified
     by a DSP pivot-detection pipeline instead of a fixed rolling-max lookback.
 
-    Why this exists
-    ---------------
-    The plain TwoB strategy uses `high.rolling(N).max()` as the "prior swing
-    high" — i.e. the highest bar in the last N bars, even if that bar is a
-    single noisy spike. A human eye doesn't read charts that way: it picks
-    out structural pivots and ignores tick-level chop. This class encodes
-    that visual filter as a signal-processing pipeline:
+    Plain TwoB uses high.rolling(N).max() as the prior swing high — the
+    highest bar in the last N bars, even if it's a single noisy spike. This
+    class replaces that with a pipeline that approximates how a human reads
+    a chart: denoise, find structural peaks, gate by prominence and lag.
 
         rolling causal wavelet denoise of close
             -> scipy.signal.find_peaks on the denoised series
             -> filter peaks by prominence in ATR units
-            -> confirm only after `pivot_confirm_bars` of follow-through
+            -> confirm only after pivot_confirm_bars of follow-through
 
-    The 2B failed-breakout logic itself (price breaks the prior swing, then
-    closes back through within `confirmation_days`) is identical to TwoB —
-    only the *source of swing levels* changes.
+    The 2B failed-breakout logic itself is identical to TwoB — only the
+    source of swing levels changes.
 
-    Causality
-    ---------
-    - `rolling_wavelet_denoise` is causal: denoised[t] depends only on the
-      `denoise_window` bars up to and including t.
-    - A peak at bar k is only treated as "known" once t >= k +
-      pivot_confirm_bars. This is the group-delay analog of pivot detection:
-      you don't know it was a peak until the bars after it print lower.
-    - Caveat: `scipy.find_peaks` computes prominence over the full input
-      array. Whether a given pivot passes the prominence gate could in
-      principle shift slightly as later data arrives. The trade decision
-      itself does not look ahead (it depends only on already-confirmed
-      pivots and the current bar), but be aware that pivot *selection* is
-      not strictly causal. A fully-causal peak finder is straightforward
-      to add if you want to remove this asterisk.
+    Causality note: rolling_wavelet_denoise is causal (denoised[t] uses only
+    the prior denoise_window bars). A peak at bar k is only "known" once
+    t >= k + pivot_confirm_bars. One asterisk: scipy.find_peaks computes
+    prominence over the full array, so pivot selection could shift slightly
+    as later data arrives. The trade decision itself doesn't look ahead.
     """
 
     def __init__(
@@ -55,25 +42,16 @@ class WaveletTwoB(Strategy):
         confirmation_days: int = 3,
         atr_period: int = 14,
     ):
-        """
-        Args:
-            denoise_window: rolling lookback for the causal wavelet denoiser.
-            wavelet: pywt wavelet name. 'db6' is a smooth, compact-support default.
-            threshold_scale: multiplier on Donoho-Johnstone universal threshold.
-                             0.5 = gentler suppression; keeps medium-frequency
-                             swings while squashing tick-level noise.
-            min_prominence_atr: a peak counts only if its prominence (price
-                                units) is at least this multiple of ATR at the
-                                peak bar. Dimensionless self-adapting filter.
-            min_pivot_distance: minimum bar separation between detected pivots
-                                (find_peaks `distance` parameter).
-            pivot_confirm_bars: a pivot at bar k is only "known" at bar
-                                k + pivot_confirm_bars. Prevents look-ahead.
-            confirmation_days: bars after the breakout in which price must
-                               close back through the prior pivot (1-5, per
-                               Sperandeo).
-            atr_period: ATR window for prominence-gating.
-        """
+        # denoise_window: rolling lookback for the causal wavelet denoiser
+        # wavelet: pywt wavelet name — db6 is smooth with compact support
+        # threshold_scale: multiplier on the DJ universal threshold; 0.5 keeps
+        #   medium-frequency swings while squashing tick noise
+        # min_prominence_atr: peak counts only if prominence >= this * ATR at
+        #   the peak bar — dimensionless, self-adapts across assets
+        # min_pivot_distance: minimum bar gap between detected pivots
+        # pivot_confirm_bars: pivot at bar k is "known" only at k + this value
+        # confirmation_days: bars after breakout to close back through (1-5)
+        # atr_period: ATR window for prominence-gating
         if denoise_window < 16:
             raise ValueError("denoise_window too small for wavelet decomposition.")
         if confirmation_days < 1 or confirmation_days > 5:
