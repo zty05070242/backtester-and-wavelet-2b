@@ -104,7 +104,7 @@ Both engines share the same Strategy interface and metrics output.
 - Each tranche has its own entry price and stop loss.
 - Total risk exposure preserved: `tranche_risk_pct = risk_pct / max_tranches`.
 
-The scaled engine is the more revealing one for this comparison. The plain engine's all-in/all-out compounding amplifies sizing effects — a 26-year backtest on a strongly trending asset can post returns of 22,000% on what is actually a moderately-good signal. The scaled engine flattens that effect and reveals the underlying per-trade economics.
+The scaled engine is the more revealing one for this comparison. The plain engine's all-in/all-out compounding amplifies sizing effects. A 26-year backtest on a strongly trending asset can post returns of 22,000% on what is actually a moderately-good signal. The scaled engine flattens that effect and reveals the underlying per-trade economics.
 
 ---
 
