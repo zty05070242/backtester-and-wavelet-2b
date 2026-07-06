@@ -69,7 +69,7 @@ raw close ──► rolling causal wavelet denoise (db6, soft threshold, win=128
           ──► resulting pivot levels feed Sperandeo's failed-breakout test
 ```
 
-Every stage has a DSP analog:
+Every stage has a DSP analogue:
 
 - **Denoise** suppresses tick-level chop so peaks correspond to structural swings, not single bars.
 - **Prominence** (the vertical distance from a peak down to its lowest contour line) is exactly the "does this swing matter" filter the eye applies. Expressing it in ATR multiples makes it self-adapting across assets and regimes.
