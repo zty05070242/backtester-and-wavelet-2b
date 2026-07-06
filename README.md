@@ -37,7 +37,9 @@ chart.py                    Plotly candlestick + auto-overlay
 data_loader.py              yfinance → OHLCV DataFrame
 position_sizer.py           fixed-fractional risk sizing
 wavelet_denoiser.py         pywt denoising (global + causal rolling)
+regime_hmm.py               Gaussian HMM regime classifier (ranging / trending / volatile)
 run_comparison.py           10-commodity × 2-strategy × 2-backtester harness
+run_regime_analysis.py      HMM regime overlay — per-regime trade breakdown + crisis-filtered backtest
 
 strategy_folder/
     _strategy_base_class.py     abstract Strategy base class
@@ -251,6 +253,53 @@ the input signal.
 
 ---
 
+## Regime analysis — HMM overlay
+
+Real systematic funds almost never run a strategy naked — they run a regime
+classifier on top that controls when the strategy is allowed to trade.
+[regime_hmm.py](regime_hmm.py) fits a 3-state Gaussian HMM on two features:
+
+- **20-day rolling realized volatility** (std of daily log returns)
+- **20-day cumulative log return** (directional component)
+
+States are labelled by mean realized vol ascending: **ranging** (low) /
+**trending** (mid) / **volatile** (high). Both a retrospective full-series
+decode (for post-hoc analysis) and a causal rolling version (refit quarterly
+on a 5-year trailing window, safe for signal gating) are implemented.
+
+[run_regime_analysis.py](run_regime_analysis.py) does two things:
+
+**1. Per-regime trade breakdown.** For each of the 10 markets, it splits the
+trade log from each backtest by the regime active at entry date. This answers
+the question the aggregate Sharpe table can't: in which market conditions does
+each strategy actually earn money, and in which does it bleed?
+
+The natural gas result is the clearest example of why this matters. NG=F posts
+the weakest numbers of any market across both strategies and both backtesters.
+The regime breakdown shows why: natural gas spends roughly 60% of its history
+in the volatile state — sharp directional moves with frequent regime shifts —
+which is structurally the worst environment for a failed-breakout reversal.
+The strategy fires, gets stopped out on the continuation, and fires again. The
+underperformance isn't a parameter problem; it's a regime mismatch. Knowing
+that converts a confusing result into a research finding.
+
+**2. Crisis-filtered backtest.** Signals in the volatile regime are zeroed out
+using the causal rolling HMM (no look-ahead). The comparison shows how much of
+each strategy's drawdown comes specifically from trading through high-volatility
+regimes, and whether crisis-filtering improves risk-adjusted returns at the cost
+of reduced trade count.
+
+### Causality
+
+The full-series HMM (used only for the per-regime breakdown) is not causal —
+it sees the full 26-year history before labelling any bar, so it can't be used
+for live gating. The rolling version is strictly causal: the model fit at time
+t uses only bars up to t, and the state label for bar t is produced without any
+forward-looking information. All crisis-filtering in the backtest uses the
+causal labels only.
+
+---
+
 ## How to run
 
 ```bash
@@ -258,6 +307,10 @@ pip install -r requirements.txt
 
 # Full 10-commodity × 2-strategy × 2-backtester comparison (saves CSV + per-ticker equity HTML)
 python run_comparison.py
+
+# HMM regime overlay — per-regime trade breakdown + crisis-filtered backtest
+# (saves regime_analysis_YYYYMMDD.csv and regime_gated_YYYYMMDD.csv)
+python run_regime_analysis.py
 
 # Single-strategy smoke test with chart
 python -m strategy_folder.wavelet_two_b
@@ -352,6 +405,7 @@ yfinance
 pandas
 numpy
 plotly
+hmmlearn     (used by regime_hmm.py for GaussianHMM)
 pykalman
 PyWavelets   (imported as pywt)
 scipy        (used by wavelet_two_b.py for find_peaks)

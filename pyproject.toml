@@ -14,7 +14,9 @@ py-modules = [
     "chart",
     "data_loader",
     "position_sizer",
+    "regime_hmm",
     "run_comparison",
+    "run_regime_analysis",
     "wavelet_denoiser",
     "wavelet_kalman_calibrate",
 ]
